@@ -14,7 +14,7 @@ import (
 const usage = `Usage: skills <command> [arguments]
 
 Commands:
-  sync                  Link repository skills into ~/.agents and ~/.claude
+  sync                  Link skills into existing ~/.agents and ~/.claude
   reset                 Remove repository skills from ~/.agents and ~/.claude
   add <skill>           Create a skill directory and SKILL.md
   delete <skill>        Delete a skill directory from this repository
@@ -121,15 +121,18 @@ func (c cli) sync() error {
 		return fmt.Errorf("no skill directories containing SKILL.md were found in %s", c.skillsDir())
 	}
 
-	for _, destination := range c.destinations() {
-		if err := os.MkdirAll(destination, 0o755); err != nil {
-			return fmt.Errorf("create %s: %w", destination, err)
-		}
+	destinations, err := c.prepareSyncDestinations()
+	if err != nil {
+		return err
+	}
+	if len(destinations) == 0 {
+		fmt.Fprintln(c.stdout, "No existing ~/.agents or ~/.claude directories; nothing to sync.")
+		return nil
 	}
 
 	for _, skill := range skills {
 		source := filepath.Join(c.skillsDir(), skill)
-		for _, destination := range c.destinations() {
+		for _, destination := range destinations {
 			target := filepath.Join(destination, skill)
 			if err := os.RemoveAll(target); err != nil {
 				return fmt.Errorf("remove existing %s: %w", target, err)
@@ -141,8 +144,42 @@ func (c cli) sync() error {
 		}
 	}
 
-	fmt.Fprintf(c.stdout, "Linked %d skill(s) to both destinations.\n", len(skills))
+	fmt.Fprintf(c.stdout, "Linked %d skill(s) to %d destination(s).\n", len(skills), len(destinations))
 	return nil
+}
+
+func (c cli) prepareSyncDestinations() ([]string, error) {
+	var existing []string
+	for _, destination := range c.destinations() {
+		root := filepath.Dir(destination)
+		info, err := os.Stat(root)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("inspect %s: %w", root, err)
+		}
+		if !info.IsDir() {
+			return nil, fmt.Errorf("%s exists but is not a directory", root)
+		}
+
+		info, err = os.Stat(destination)
+		if errors.Is(err, os.ErrNotExist) {
+			if err := os.Mkdir(destination, 0o755); err != nil {
+				return nil, fmt.Errorf("create %s: %w", destination, err)
+			}
+			existing = append(existing, destination)
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("inspect %s: %w", destination, err)
+		}
+		if !info.IsDir() {
+			return nil, fmt.Errorf("%s exists but is not a directory", destination)
+		}
+		existing = append(existing, destination)
+	}
+	return existing, nil
 }
 
 func (c cli) reset() error {

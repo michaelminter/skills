@@ -62,16 +62,17 @@ skills rename <old> <new>
 skills help
 ```
 
-`skills sync` creates a symbolic link for every repository skill in both
-locations:
+`skills sync` creates a symbolic link for every repository skill in each
+existing location:
 
 - `~/.agents/skills/<skill-name>`
 - `~/.claude/skills/<skill-name>`
 
-It creates the parent directories when needed. If a matching skill already
-exists at either destination, the command replaces it with a link to the source
-directory in this repository. Changes made here are therefore immediately
-available to both tools.
+It does not create `~/.agents` or `~/.claude` when those tool directories do not
+already exist. For each existing tool directory, it creates the `skills/` child
+directory when needed. If a matching skill already exists at a destination, the
+command replaces it with a link to the source directory in this repository.
+Changes made here are therefore immediately available to installed tools.
 
 Skills installed at either destination but not present in this repository are
 left untouched. `skills reset` removes the repository's skills from both

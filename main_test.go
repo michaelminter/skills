@@ -51,6 +51,11 @@ func TestRejectsUnsafeSkillNames(t *testing.T) {
 
 func TestRenameUpdatesSkillAndInstalledLinks(t *testing.T) {
 	app, output := testCLI(t)
+	for _, destination := range app.destinations() {
+		if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if err := app.run([]string{"add", "old-skill"}); err != nil {
 		t.Fatal(err)
 	}
@@ -95,6 +100,39 @@ func TestRenameUpdatesSkillAndInstalledLinks(t *testing.T) {
 	}
 	if !strings.Contains(output.String(), "Renamed old-skill to new-skill") {
 		t.Fatalf("unexpected output: %s", output.String())
+	}
+}
+
+func TestSyncSkipsMissingToolDirectories(t *testing.T) {
+	app, output := testCLI(t)
+	if err := app.run([]string{"add", "example"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := app.run([]string{"sync"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, root := range []string{filepath.Join(app.home, ".agents"), filepath.Join(app.home, ".claude")} {
+		if _, err := os.Stat(root); !os.IsNotExist(err) {
+			t.Fatalf("sync created missing tool directory %s: %v", root, err)
+		}
+	}
+	if !strings.Contains(output.String(), "nothing to sync") {
+		t.Fatalf("unexpected output: %s", output.String())
+	}
+
+	agentsRoot := filepath.Join(app.home, ".agents")
+	if err := os.Mkdir(agentsRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.run([]string{"sync"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(filepath.Join(agentsRoot, "skills", "example")); err != nil {
+		t.Fatalf("sync did not link into existing tool directory: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(app.home, ".claude")); !os.IsNotExist(err) {
+		t.Fatalf("sync created missing .claude directory: %v", err)
 	}
 }
 
