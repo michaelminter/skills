@@ -1,5 +1,5 @@
 ---
-name: review-pr-comments
+name: pr-review-comments
 description: Fetches, evaluates, and triages unresolved review comments on an active pull request, assessing validity and required actions against the current codebase, with optional filtering by commit hash. Use when asked to "review PR comments", "check the feedback on my PR", "what did reviewers say", "triage review comments", or given a PR number/URL or commit hash to check comments against. Read-only: produces a triage and plan, never modifies code. Do not use for writing a PR description or performing a code review of the diff itself.
 ---
 
